@@ -39,6 +39,10 @@ export class NPCManager {
         ).setOrigin(0.5).setScrollFactor(0).setDepth(1000).setVisible(false);
     }
     
+    public setUiDepth(depth: number): void {
+        this.interactionText.setDepth(depth);
+    }
+
     public addNPC(npc: NPC): void {
         this.npcs.push(npc);
     }
@@ -66,10 +70,14 @@ export class NPCManager {
         this.interactionText.setVisible(this.currentNPC !== null);
 
         if(this.currentNPC) {
-            this.interactionText.setPosition(
-                this.scene.scale.width / 2,
-                this.scene.scale.height - 80
-            );
+            // Fixa na tela mesmo quando a câmera principal usa zoom (cenário 2.5D).
+            const cam = this.scene.cameras.main;
+            const zoom = cam.zoom;
+            const cx = cam.width / 2;
+            const cy = cam.height / 2;
+            this.interactionText
+                .setScale(1 / zoom)
+                .setPosition(cx, (cam.height - 80 - cy) / zoom + cy);
         }
 
         if(this.currentNPC && Phaser.Input.Keyboard.JustDown(this.interactionKey)) {
