@@ -1,14 +1,20 @@
 {
+  "name": "as-bem-aventurancas",
+  "private": true,
+  "homepage": "https://github.io",
+  "scripts": {
+    "dev": "vite game/bem_aventurancas",
+    "build": "tsc -p game/bem_aventurancas && vite build game/bem_aventurancas",
+    "preview": "vite preview game/bem_aventurancas",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d game/bem_aventurancas/dist"
+  },
   "dependencies": {
     "phaser": "^4.2.1"
   },
   "devDependencies": {
+    "gh-pages": "^6.2.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.5"
-  },
-  "scripts": {
-    "dev": "vite game/bem_aventurancas",
-    "build": "tsc -p game/bem_aventurancas && vite build game/bem_aventurancas",
-    "preview": "vite preview game/bem_aventurancas"
   }
 }
