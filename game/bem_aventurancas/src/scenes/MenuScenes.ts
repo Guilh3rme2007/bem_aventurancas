@@ -27,7 +27,7 @@ export class MenuScene extends Phaser.Scene {
   preload() {
     this.load.image(
       "menu-background",
-      "/assets/backgrounds/monte-das-oliveiras.webp"
+      "assets/backgrounds/monte-das-oliveiras.webp"
     );
   }
 
