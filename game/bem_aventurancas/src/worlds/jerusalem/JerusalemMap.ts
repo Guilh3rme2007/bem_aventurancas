@@ -1,6 +1,7 @@
 import { JerusalemPath, LevelSegment } from './JerusalemPath';
 import type { PropKind } from './JerusalemEnvironment';
-import type { NPCSpawnPoint } from '../../../../src/data/npcs/npcSpawnPoints';
+import type { MaterialId } from '../../level/humildes_espirito/materials/MaterialLibrary';
+import type { NPCSpawnPoint } from '../../data/npcs/npcSpawnPoints';
 
 /**
  * Estrutura principal do mapa: dados puros (sem objetos Phaser).
@@ -21,6 +22,8 @@ export interface Placement {
   segmentId: string;
   kind: PropKind;
   variant: number;
+  /** Material de alvenaria escolhido pela região (só para objetos com `materialRole`). */
+  mat?: MaterialId;
   /** X central e Y do "pé" (base) do objeto, em coordenadas de mundo. */
   x: number;
   y: number;

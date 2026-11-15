@@ -1,14 +1,15 @@
 import Phaser from 'phaser';
 import { DEPTH, DESIGN_HEIGHT, PALETTE, QUALITY } from './JerusalemBackgroundConfig';
-import { mix, toVec } from './HandDrawn';
-import { JerusalemPath } from './JerusalemPath';
+import { mix } from './HandDrawn';
+import { JerusalemPath, AreaId } from './JerusalemPath';
 import { JerusalemMap, Placement, SegmentPlan } from './JerusalemMap';
 import { planMap, SegmentStreamer } from './JerusalemMapGenerator';
 import { registerJerusalemAssets, TEX } from './JerusalemAssets';
-import { ensurePropTexture, PAD, VARIANTS, PropKind } from './JerusalemEnvironment';
-import { buildSegmentGround } from './JerusalemGround';
+import { ensurePropTexture, PAD } from './JerusalemEnvironment';
+import { RegionStyle, RegionStyles, resolveRegionStyles } from './JerusalemRegionStyles';
+import { buildSegmentGround, destroySegmentGround, SegmentGround } from './JerusalemGround';
 import { JerusalemBackdrop } from './JerusalemBackdrop';
-import { NPC_SPAWN_POINTS, NPCSpawnPoint } from '../../../../src/data/npcs/npcSpawnPoints';
+import { NPC_SPAWN_POINTS, NPCSpawnPoint } from '../../data/npcs/npcSpawnPoints';
 
 /** Qualquer GameObject com posição e profundidade serve como jogador. */
 export type PlayerLike = Phaser.GameObjects.Sprite | Phaser.GameObjects.Image | Phaser.GameObjects.Rectangle;
@@ -28,8 +29,10 @@ export interface JerusalemLevelOptions {
   /** Largura mínima (px de mundo) visível: evita câmera estreita em telas verticais. Padrão: 560. */
   minViewWidth?: number;
   followLerp?: number;
-  /** Gera todas as texturas de objetos no início (evita engasgos ao entrar em novos segmentos). */
+  /** Gera no início as texturas de todos os objetos do mapa (evita engasgos ao entrar em novos segmentos). */
   prebake?: boolean;
+  /** Troca materiais de uma região sem mexer na geração (ver JerusalemRegionStyles.ts). */
+  regionStyles?: Partial<Record<AreaId, Partial<RegionStyle>>>;
   debug?: boolean;
 }
 
@@ -43,6 +46,7 @@ export const LEVEL_EVENTS = {
 
 interface SegmentView {
   id: string;
+  ground: SegmentGround;
   objects: Phaser.GameObjects.GameObject[];
   tweens: Phaser.Tweens.Tween[];
   zones: Phaser.GameObjects.Zone[];
@@ -66,6 +70,7 @@ export class JerusalemLevel {
   private readonly player?: PlayerLike;
   private readonly opts: Required<Pick<JerusalemLevelOptions, 'autoDepth' | 'clampPlayer' | 'minViewWidth' | 'followLerp'>>;
   private readonly gateX: number;
+  private readonly styles: RegionStyles;
   private debugGfx?: Phaser.GameObjects.Graphics;
   private reachedTemple = false;
   private nearNpc?: NPCSpawnPoint;
@@ -81,14 +86,15 @@ export class JerusalemLevel {
     this.player = options.player;
 
     registerJerusalemAssets(scene);
-    if (options.prebake ?? true) {
-      (Object.keys(VARIANTS) as PropKind[]).forEach((k) => {
-        for (let v = 0; v < VARIANTS[k]; v++) ensurePropTexture(scene, k, v);
-      });
-    }
 
+    this.styles = resolveRegionStyles(options.regionStyles);
     this.path = new JerusalemPath();
-    this.map = planMap(this.path, options.npcSpawns ?? NPC_SPAWN_POINTS);
+    this.map = planMap(this.path, options.npcSpawns ?? NPC_SPAWN_POINTS, undefined, this.styles);
+    if (options.prebake ?? QUALITY.prebakeProps) {
+      // gera só as texturas que o mapa realmente usa (cada combinação objeto/variante/material, uma vez)
+      ensurePropTexture(scene, 'templeFar', 0);
+      for (const plan of this.map.plans) for (const p of plan.placements) ensurePropTexture(scene, p.kind, p.variant, p.mat);
+    }
     this.gateX = this.path.endX - 300;
 
     if (scene.physics?.add) this.solids = scene.physics.add.staticGroup();
@@ -155,13 +161,12 @@ export class JerusalemLevel {
 
   private buildSegment(plan: SegmentPlan): SegmentView {
     const scene = this.scene;
-    const view: SegmentView = { id: plan.segment.id, objects: [], tweens: [], zones: [] };
-    const ground = buildSegmentGround(scene, this.path, plan.segment);
-    view.objects.push(ground.rt);
+    const ground = buildSegmentGround(scene, this.path, plan.segment, this.styles);
+    const view: SegmentView = { id: plan.segment.id, ground, objects: [], tweens: [], zones: [] };
 
     let swayCount = 0;
     for (const p of plan.placements) {
-      const baked = ensurePropTexture(scene, p.kind, p.variant);
+      const baked = ensurePropTexture(scene, p.kind, p.variant, p.mat);
       const depth = p.depth ?? (p.layer === 'fore' ? DEPTH.foreBase + p.y : DEPTH.midBase + p.y);
       const wantSway = !!p.sway && swayCount < QUALITY.maxSwayObjectsPerSegment;
 
@@ -222,6 +227,7 @@ export class JerusalemLevel {
     v.tweens.forEach((t) => t.remove());
     v.zones.forEach((z) => (this.solids ? this.solids.remove(z, true, true) : z.destroy()));
     v.objects.forEach((o) => o.destroy());
+    destroySegmentGround(this.scene, v.ground);
     this.scene.events.emit(LEVEL_EVENTS.segmentDestroyed, v.id);
   }
 
@@ -331,8 +337,8 @@ export class JerusalemLevel {
       bots.push({ x, y: b.bottom });
     }
     if (tops.length > 1) {
-      g.strokePoints(toVec(tops), false);
-      g.strokePoints(toVec(bots), false);
+      g.strokePoints(tops.map((p) => new Phaser.Math.Vector2(p.x, p.y)), false);
+      g.strokePoints(bots.map((p) => new Phaser.Math.Vector2(p.x, p.y)), false);
     }
     g.lineStyle(1, 0xff3344, 0.9);
     for (const id of this.streamer.liveIds)

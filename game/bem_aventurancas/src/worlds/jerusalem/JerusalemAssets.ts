@@ -1,6 +1,17 @@
-import Phaser from 'phaser';
-import { PALETTE as P, QUALITY } from './JerusalemBackgroundConfig';
-import { Ink, createRng, hex, lighten, darken, mix, varyTone } from './HandDrawn';
+import type Phaser from 'phaser';
+import { PALETTE as P } from './JerusalemBackgroundConfig';
+import { bakeCanvas } from '../../level/humildes_espirito/style/CanvasStore';
+import { createRng, hex, lighten, darken, mix, varyTone } from './HandDrawn';
+import { registerMaterials } from '../../level/humildes_espirito/materials/MaterialLibrary';
+
+/**
+ * Registro de TEXTURAS GLOBAIS do cenário (plano distante e sobreposições de pintura):
+ * papel, vinheta, céu, nuvens, colinas, silhuetas da cidade e poeira. Também garante que a
+ * biblioteca de MATERIAIS (pisos, paredes, madeiras) esteja registrada.
+ *
+ * Tudo é gerado por código, uma única vez por jogo (idempotente), e reaproveitado.
+ * Nenhuma imagem grande é carregada nem criada.
+ */
 
 export const TEX = {
   paper: 'jr-paper',
@@ -10,21 +21,9 @@ export const TEX = {
   mountains: 'jr-mountains',
   farCity: 'jr-farcity',
   dust: 'jr-dust',
-  dirt: (i: number) => `jr-dirt-${i}`,
-  cobble: (i: number) => `jr-cobble-${i}`,
-  ashlar: (i: number) => `jr-ashlar-${i}`,
 } as const;
 
-export const DIRT_VARIANTS = 4;
-
-function canvasTexture(scene: Phaser.Scene, key: string, w: number, h: number, paint: (ctx: CanvasRenderingContext2D) => void): void {
-  if (scene.textures.exists(key)) return;
-  const tex = scene.textures.createCanvas(key, w, h);
-  if (!tex) return;
-  paint(tex.getContext());
-  tex.refresh();
-}
-
+/** Desenha duas vezes (x e x±w) para que formas que cruzam a borda continuem no outro lado. */
 function wrapDraw(w: number, x: number, draw: (ox: number) => void): void {
   draw(0);
   if (x < w * 0.25) draw(w);
@@ -32,9 +31,11 @@ function wrapDraw(w: number, x: number, draw: (ox: number) => void): void {
 }
 
 export function registerJerusalemAssets(scene: Phaser.Scene): void {
+  registerMaterials(scene);
   const rng = createRng(0x1e2a5a);
 
-  canvasTexture(scene, TEX.paper, 256, 256, (ctx) => {
+  /* Papel: grão + fibras. Ladrilhável. Usado em MULTIPLY sobre a tela. */
+  bakeCanvas(scene, TEX.paper, 256, 256, (ctx) => {
     ctx.fillStyle = 'rgb(240,229,204)';
     ctx.fillRect(0, 0, 256, 256);
     for (let i = 0; i < 5200; i++) {
@@ -59,7 +60,8 @@ export function registerJerusalemAssets(scene: Phaser.Scene): void {
     }
   });
 
-  canvasTexture(scene, TEX.vignette, 512, 512, (ctx) => {
+  /* Vinheta (bordas escurecidas como pintura sobre papel). */
+  bakeCanvas(scene, TEX.vignette, 512, 512, (ctx) => {
     const g = ctx.createRadialGradient(256, 256, 120, 256, 256, 362);
     g.addColorStop(0, 'rgba(70,48,30,0)');
     g.addColorStop(0.62, 'rgba(70,48,30,0.04)');
@@ -68,7 +70,8 @@ export function registerJerusalemAssets(scene: Phaser.Scene): void {
     ctx.fillRect(0, 0, 512, 512);
   });
 
-  canvasTexture(scene, TEX.sky, 512, 512, (ctx) => {
+  /* Céu em aquarela: degradê + manchas claras. */
+  bakeCanvas(scene, TEX.sky, 512, 512, (ctx) => {
     const g = ctx.createLinearGradient(0, 0, 0, 512);
     g.addColorStop(0, hex(darken(P.sky, 0.05)));
     g.addColorStop(0.55, hex(lighten(P.sky, 0.35)));
@@ -80,15 +83,15 @@ export function registerJerusalemAssets(scene: Phaser.Scene): void {
       const y = rng.range(0, 460);
       const r = rng.range(30, 90);
       const rg = ctx.createRadialGradient(x, y, 0, x, y, r);
-      const light = rng.chance(0.6);
-      rg.addColorStop(0, light ? 'rgba(255,248,230,0.16)' : 'rgba(120,150,165,0.09)');
+      rg.addColorStop(0, rng.chance(0.6) ? 'rgba(255,248,230,0.16)' : 'rgba(120,150,165,0.09)');
       rg.addColorStop(1, 'rgba(255,255,255,0)');
       ctx.fillStyle = rg;
       ctx.fillRect(x - r, y - r, r * 2, r * 2);
     }
   });
 
-  canvasTexture(scene, TEX.clouds, 1024, 200, (ctx) => {
+  /* Nuvens (ladrilhável na horizontal). */
+  bakeCanvas(scene, TEX.clouds, 1024, 200, (ctx) => {
     for (let c = 0; c < 6; c++) {
       const cx = rng.range(0, 1024);
       const cy = rng.range(40, 140);
@@ -109,7 +112,8 @@ export function registerJerusalemAssets(scene: Phaser.Scene): void {
     }
   });
 
-  canvasTexture(scene, TEX.mountains, 1024, 240, (ctx) => {
+  /* Montanhas / colinas (ladrilhável: ondas com período inteiro). */
+  bakeCanvas(scene, TEX.mountains, 1024, 240, (ctx) => {
     const ridge = (base: number, amp: number, color: number, seed: number): void => {
       const r = createRng(seed);
       const ph = [r.range(0, 6.28), r.range(0, 6.28), r.range(0, 6.28)];
@@ -138,7 +142,8 @@ export function registerJerusalemAssets(scene: Phaser.Scene): void {
     }
   });
 
-  canvasTexture(scene, TEX.farCity, 1024, 220, (ctx) => {
+  /* Silhuetas distantes da cidade: terraços planos, duas fiadas. */
+  bakeCanvas(scene, TEX.farCity, 1024, 220, (ctx) => {
     const row = (baseY: number, hMin: number, hMax: number, color: number, seed: number): void => {
       const r = createRng(seed);
       let x = -r.range(0, 40);
@@ -164,50 +169,12 @@ export function registerJerusalemAssets(scene: Phaser.Scene): void {
     row(220, 50, 130, mix(P.limestone, P.sky, 0.28), 9);
   });
 
-  canvasTexture(scene, TEX.dust, 16, 16, (ctx) => {
+  /* Poeira (grão suave). */
+  bakeCanvas(scene, TEX.dust, 16, 16, (ctx) => {
     const g = ctx.createRadialGradient(8, 8, 0, 8, 8, 8);
     g.addColorStop(0, 'rgba(240,226,190,0.9)');
     g.addColorStop(1, 'rgba(240,226,190,0)');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, 16, 16);
   });
-
-  const bake = (key: string, w: number, h: number, paint: (ink: Ink) => void): void => {
-    if (scene.textures.exists(key)) return;
-    const g = scene.make.graphics({ x: 0, y: 0 }, false);
-    paint(new Ink(g, createRng(key.length * 7919 + w), 3, 3, 1.0));
-    g.generateTexture(key, w + 6, h + 6);
-    g.destroy();
-  };
-
-  for (let i = 0; i < QUALITY.stoneTextureVariants; i++) {
-    const r = createRng(100 + i);
-    const w = r.int(44, 66);
-    const h = r.int(26, 38);
-    bake(TEX.cobble(i), w, h, (ink) => {
-      const pts = [];
-      const n = 8;
-      for (let k = 0; k < n; k++) {
-        const a = (k / n) * Math.PI * 2;
-        pts.push({ x: w / 2 + Math.cos(a) * (w / 2) * r.range(0.82, 1), y: h / 2 + Math.sin(a) * (h / 2) * r.range(0.8, 1) });
-      }
-      ink.poly(pts, varyTone(P.limestone, r, 0.16), { width: 1.3, alpha: 0.95 });
-      ink.wash(w * 0.15, h * 0.1, w * 0.55, h * 0.4, P.cloudWhite, 0.2);
-      ink.wash(w * 0.5, h * 0.55, w * 0.4, h * 0.4, P.shadow, 0.16);
-    });
-    bake(TEX.ashlar(i), 96, 46, (ink) => {
-      const tone = varyTone(mix(P.limestone, P.beigeLight, 0.45), r, 0.1);
-      ink.rect(0, 0, 96, 46, darken(tone, 0.1), { width: 1.6, alpha: 0.95 });
-      ink.rect(5, 5, 86, 36, tone, { width: 1, alpha: 0.95, bleed: false });
-      ink.strokes(5, 5, 86, 36, darken(tone, 0.4), 4, 0.1, 22);
-      ink.wash(5, 5, 86, 10, P.cloudWhite, 0.18);
-    });
-  }
-  for (let i = 0; i < DIRT_VARIANTS; i++) {
-    const r = createRng(300 + i);
-    bake(TEX.dirt(i), 96, 40, (ink) => {
-      ink.ellipse(48, 20, r.range(36, 46), r.range(12, 18), mix(P.sand, P.brown, r.range(0.1, 0.3)), { alpha: 0.5, outline: false });
-      ink.strokes(8, 8, 80, 24, P.brown, 6, 0.2, 14);
-    });
-  }
 }

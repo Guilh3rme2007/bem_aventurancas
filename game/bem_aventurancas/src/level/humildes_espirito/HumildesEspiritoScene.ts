@@ -5,8 +5,8 @@ import {humildesEspiritoNPC} from "../../data/npcs/humildesEspirito";
 import {ProgressManager} from "../../systems/ProgressManager";
 import {GameRouter} from "../../router/GameRouter";
 import {APP_ROUTES} from "../../router/routes";
-import {JerusalemLevel} from "../../../public/assets/backgrounds/humildes-espirito/JerusalemLevel";
-import {DEPTH} from "../../../public/assets/backgrounds/humildes-espirito/JerusalemBackgroundConfig";
+import {JerusalemLevel} from "../../worlds/jerusalem/JerusalemLevel";
+import {DEPTH} from "../../worlds/jerusalem/JerusalemBackgroundConfig";
 
 const PLAYER_SPEED_X = 200;
 const PLAYER_SPEED_Y = 130;
