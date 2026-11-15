@@ -1,4 +1,4 @@
-import { Ink, createRng, hex, rgba } from '../HandDrawn';
+import { Ink, createRng, hex, rgba } from '../../../worlds/jerusalem/HandDrawn';
 
 /**
  * Utilidades para texturas REPETÍVEIS (sem emendas).

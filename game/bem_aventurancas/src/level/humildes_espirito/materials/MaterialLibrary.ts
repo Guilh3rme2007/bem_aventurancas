@@ -1,6 +1,6 @@
 import type Phaser from 'phaser';
 import { bakeCanvas } from '../style/CanvasStore';
-import { createRng, hashSeed, Rng } from '../HandDrawn';
+import { createRng, hashSeed, Rng } from '../../../worlds/jerusalem/HandDrawn';
 import { paintFloorStone, paintFloorDirt, paintFloorMarket, paintFloorStairs, paintFloorTemple } from './floors';
 import { paintWallLimestone, paintWallPlaster, paintWallRetaining, paintWallTemple } from './walls';
 import { paintWoodPlanks, paintWoodBoards, paintWoodBeam } from './woods';

@@ -1,5 +1,5 @@
 import { JERUSALEM_VISUAL_THEME as T } from '../style/JerusalemVisualTheme';
-import { Ink, Rng, darken, lighten, mix, varyTone, rgba } from '../HandDrawn';
+import { Ink, Rng, darken, lighten, mix, varyTone, rgba } from '../../../worlds/jerusalem/HandDrawn';
 import { speckle, spans, splitTotal, hex } from './tileUtils';
 
 const P = T.palette;

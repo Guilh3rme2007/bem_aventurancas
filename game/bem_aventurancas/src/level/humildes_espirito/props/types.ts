@@ -1,4 +1,4 @@
-import type { Ink, Rng } from '../HandDrawn';
+import type { Ink, Rng } from '../../../worlds/jerusalem/HandDrawn';
 import type { MaterialId } from '../materials/MaterialLibrary';
 
 /**

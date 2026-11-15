@@ -1,5 +1,5 @@
 import { JERUSALEM_VISUAL_THEME as T } from '../style/JerusalemVisualTheme';
-import { Pt, darken, lighten, mix, varyTone } from '../HandDrawn';
+import { Pt, darken, lighten, mix, varyTone } from '../../../worlds/jerusalem/HandDrawn';
 import type { PropDef, PropKind } from './types';
 import { arc, jar } from './components';
 
