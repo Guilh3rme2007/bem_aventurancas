@@ -10,25 +10,24 @@ export class NPCManager {
     private player: PlayerPosition;
     private npcs: NPC[] = [];
 
-    private interactionKey: Phaser.Input.Keyboard.Key;
     private interactionText: Phaser.GameObjects.Text;
+    private readonly touchControlsEnabled: boolean;
 
     private currentNPC: NPC | null = null;
 
     constructor(
         scene: Phaser.Scene,
         player: PlayerPosition,
-        interactionKey: Phaser.Input.Keyboard.Key
+        touchControlsEnabled = false,
     ) {
         this.scene = scene;
         this.player = player;
-
-        this.interactionKey = interactionKey;
+        this.touchControlsEnabled = touchControlsEnabled;
 
         this.interactionText = scene.add.text(
             0,
             0,
-            "Pressione 'E' para interagir",
+            touchControlsEnabled ? "Toque no botão para interagir" : "Pressione 'E' para interagir",
             {
                 fontFamily: GAME_THEME.fonts.dialogue,
                 fontSize: GAME_THEME.sizes.dialogue,
@@ -47,7 +46,11 @@ export class NPCManager {
         this.npcs.push(npc);
     }
 
-    public update(): void {
+    public get canInteract(): boolean {
+        return this.currentNPC !== null;
+    }
+
+    public update(interactPressed = false): void {
         const playerPosition = this.player;
         let nearestNPC: NPC | null = null;
         let nearestDistance = Infinity;
@@ -80,12 +83,12 @@ export class NPCManager {
                 .setPosition(cx, (cam.height - 80 - cy) / zoom + cy);
         }
 
-        if(this.currentNPC && Phaser.Input.Keyboard.JustDown(this.interactionKey)) {
-            this.scene.events.emit(
-                "npc: interact",
-                this.currentNPC
-            );
-        }
+        if(interactPressed) this.requestInteraction();
+    }
+
+    public requestInteraction(): void {
+        if (!this.currentNPC) return;
+        this.scene.events.emit("npc: interact", this.currentNPC);
     }
 
     public destroy():void {

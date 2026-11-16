@@ -7,19 +7,18 @@ import {GameRouter} from "../../router/GameRouter";
 import {APP_ROUTES} from "../../router/routes";
 import {JerusalemLevel} from "../../worlds/jerusalem/JerusalemLevel";
 import {DEPTH} from "../../worlds/jerusalem/JerusalemBackgroundConfig";
-
-const PLAYER_SPEED_X = 200;
-const PLAYER_SPEED_Y = 130;
+import {PlayerCharacter} from "../../entities/PlayerCharacter";
+import {MobileControls} from "../../entities/MobileControls";
+import {InputManager} from "../../systems/InputManager";
 
 export class HumildesEspiritosScene extends Phaser.Scene{
     private npcManager!: NPCManager;
     private level!: JerusalemLevel;
 
-    private player!: Phaser.GameObjects.Rectangle;
+    private player!: PlayerCharacter;
+    private inputManager!: InputManager;
+    private mobileControls!: MobileControls;
     private backButton!: Phaser.GameObjects.Text;
-
-    private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
-    private wasd!: Record<"W" | "A" | "S" | "D", Phaser.Input.Keyboard.Key>;
 
     /** Posição dos PÉS do jogador, usada pelo NPCManager (os NPCs têm origem nos pés). */
     private playerFeet = { x: 0, y: 0 };
@@ -35,31 +34,26 @@ export class HumildesEspiritosScene extends Phaser.Scene{
             return;
         }
 
-        // Jogador existente (retângulo). A posição inicial é definida pelo cenário.
-        this.player = this.add.rectangle(
-        200,
-        500,
-        35,
-        65,
-        0xffffff
-        );
+        this.inputManager = new InputManager(this);
 
-        const keyboard = this.input.keyboard;
-        
-        if(!keyboard) {
-            throw new Error("Keyboard input is not available in the scene.");
-        }   
-
-        this.cursors = keyboard.createCursorKeys();
-        this.wasd = keyboard.addKeys("W,A,S,D") as typeof this.wasd;
+        this.player = new PlayerCharacter(this, {
+            id: "humildes-espirito-player",
+            position: { x: 200, y: 500 },
+            speed: { x: 200, y: 130 },
+            scale: 1,
+            texture: "humildes-espirito-player",
+            initialDirection: "down",
+            controlsEnabled: true,
+        });
 
         // Cenário procedural 2.5D de Jerusalém: câmera, profundidade, limites e streaming.
         this.level = new JerusalemLevel(this, { player: this.player });
+        this.mobileControls = new MobileControls(this, this.level, this.inputManager);
 
         this.npcManager = new NPCManager(
             this,
             this.playerFeet,
-            keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E)
+            this.inputManager.deviceInfo.isTouchPrimary
         );
         this.npcManager.setUiDepth(DEPTH.ui);
 
@@ -112,6 +106,8 @@ export class HumildesEspiritosScene extends Phaser.Scene{
             this.events.off("npc: interact");
             this.scale.off(Phaser.Scale.Events.RESIZE, this.layoutUi, this);
             this.npcManager.destroy();
+            this.mobileControls.destroy();
+            this.inputManager.destroy();
         });
     }
 
@@ -122,17 +118,10 @@ export class HumildesEspiritosScene extends Phaser.Scene{
     }
 
     update(time: number, delta: number){
-        if (!this.level) return;
+        if (!this.level || !this.player) return;
 
-        // Movimento 2.5D: X lateral, Y é profundidade no chão. Colisões com os sólidos do cenário.
-        const left = this.cursors.left.isDown || this.wasd.A.isDown;
-        const right = this.cursors.right.isDown || this.wasd.D.isDown;
-        const up = this.cursors.up.isDown || this.wasd.W.isDown;
-        const down = this.cursors.down.isDown || this.wasd.S.isDown;
-        const dt = delta / 1000;
-        const dir = new Phaser.Math.Vector2((right ? 1 : 0) - (left ? 1 : 0), (down ? 1 : 0) - (up ? 1 : 0));
-        if (dir.lengthSq() > 0) dir.normalize();
-        this.level.moveBy(dir.x * PLAYER_SPEED_X * dt, dir.y * PLAYER_SPEED_Y * dt);
+        const input = this.inputManager.getState();
+        this.player.update(delta, this.level, input);
 
         // Clamp, profundidade, câmera, streaming e parallax.
         this.level.update(time, delta);
@@ -141,6 +130,7 @@ export class HumildesEspiritosScene extends Phaser.Scene{
         this.playerFeet.x = feet.x;
         this.playerFeet.y = feet.y;
 
-        this.npcManager.update();
+        this.npcManager.update(input.interact);
+        this.mobileControls.setInteractionAvailable(this.npcManager.canInteract);
     }
 }

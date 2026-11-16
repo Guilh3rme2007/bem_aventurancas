@@ -11,8 +11,16 @@ import { buildSegmentGround, destroySegmentGround, SegmentGround } from './Jerus
 import { JerusalemBackdrop } from './JerusalemBackdrop';
 import { NPC_SPAWN_POINTS, NPCSpawnPoint } from '../../data/npcs/npcSpawnPoints';
 
-/** Qualquer GameObject com posição e profundidade serve como jogador. */
-export type PlayerLike = Phaser.GameObjects.Sprite | Phaser.GameObjects.Image | Phaser.GameObjects.Rectangle;
+/** GameObjects usados como jogador; um Container precisa expor a âncora de seus pés. */
+export type PlayerLike =
+  | Phaser.GameObjects.Sprite
+  | Phaser.GameObjects.Image
+  | Phaser.GameObjects.Rectangle
+  | (Phaser.GameObjects.Container & {
+      getBottomCenter(): Phaser.Math.Vector2;
+    })
+  | Phaser.Physics.Arcade.Sprite
+  | Phaser.Physics.Arcade.Image;
 
 export interface JerusalemLevelOptions {
   /** Jogador EXISTENTE (não é criado aqui). Opcional: sem ele, só o cenário é montado. */
@@ -118,7 +126,14 @@ export class JerusalemLevel {
       }
       cam.startFollow(this.player, true, this.opts.followLerp, this.opts.followLerp);
       cam.centerOn(this.player.x, DESIGN_HEIGHT / 2);
-      if ((options.collide ?? true) && this.solids && (this.player.body as unknown)) scene.physics.add.collider(this.player, this.solids);
+      if (
+        (options.collide ?? true) &&
+        this.solids &&
+        (this.player instanceof Phaser.Physics.Arcade.Sprite ||
+          this.player instanceof Phaser.Physics.Arcade.Image)
+      ) {
+        scene.physics.add.collider(this.player, this.solids);
+      }
     }
 
     // Primeira carga: monta o que está ao redor do jogador antes do primeiro frame.

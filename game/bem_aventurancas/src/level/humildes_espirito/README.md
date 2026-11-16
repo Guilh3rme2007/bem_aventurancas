@@ -23,18 +23,33 @@ texturas pequenas (uma vez) e são reutilizados.
 ## Integração com a Scene
 
 ```ts
-import { JerusalemLevel } from "./background/JerusalemLevel";
+import { JerusalemLevel } from "../../worlds/jerusalem/JerusalemLevel";
+import { PlayerCharacter } from "../../entities/PlayerCharacter";
 
 create() {
+  this.player = new PlayerCharacter(this, {
+    id: "my-level-player",
+    position: { x: 200, y: 500 },
+    speed: { x: 200, y: 130 },
+    scale: 1,
+    initialDirection: "down",
+    controlsEnabled: true,
+  });
   this.level = new JerusalemLevel(this, { player: this.player });
   // opcional: trocar materiais de uma região sem editar o gerador
   // new JerusalemLevel(this, { player, regionStyles: { market: { walk: 'floor_stone' } } });
 }
 update(t: number, dt: number) {
-  // ... movimento (use this.level.moveBy(dx, dy) para colisão com os objetos sólidos)
+  this.player.update(dt, this.level);
   this.level.update(t, dt);
 }
 ```
+
+`PlayerCharacter` recebe movimento WASD/setas e chama `JerusalemLevel.moveBy()` para testar a colisão geométrica. `JerusalemLevel.update()` continua responsável por limitar a faixa caminhável, atualizar profundidade, câmera e streaming. Não é adicionada uma segunda física.
+
+A aparência usa um placeholder marcado `PLAYER TEMP` enquanto a textura indicada não estiver carregada. Para usar um sprite/spritesheet, carregue sua textura antes de instanciar o Player e passe `texture`, `displaySize` e, quando as animações estiverem registradas, o mapa `animations` com chaves `idle-up/down/left/right` e `walk-up/down/left/right`. Nenhum spritesheet ou animação final está incluído nesta fase.
+
+`setInteracting(true)` e `setDialogueActive(true)` bloqueiam movimento. Esses pontos de integração não implementam nem iniciam diálogos.
 
 Eventos (`this.events.on(...)`): `jerusalem:reached-temple`, `jerusalem:npc-enter`, `jerusalem:npc-leave`,
 `jerusalem:segment-built`, `jerusalem:segment-destroyed` (constantes em `LEVEL_EVENTS`).

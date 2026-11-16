@@ -16,6 +16,9 @@ export const GAME_CONFIG: Phaser.Types.Core.GameConfig = {
         mode: Phaser.Scale.RESIZE,
         autoCenter: Phaser.Scale.CENTER_BOTH
     },
+    input: {
+        activePointers: 3
+    },
     scene: [
         MenuScene,
         PhaseSelectScene,
